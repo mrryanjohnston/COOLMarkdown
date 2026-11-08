@@ -1,4 +1,4 @@
-# CLIPSMarkdown
+# COOLMarkdown
 
 A codex for Markdown written in
 [CLIPS](https://clipsrules.net/)
