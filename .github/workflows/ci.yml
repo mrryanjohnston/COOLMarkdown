@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CLIPS_VERSION: 6.4.2
+
+jobs:
+  check:
+    name: Lint and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache CLIPS
+        id: cache-clips
+        uses: actions/cache@v4
+        with:
+          path: ~/clips
+          key: clips-${{ env.CLIPS_VERSION }}-${{ runner.os }}
+
+      - name: Build CLIPS ${{ env.CLIPS_VERSION }}
+        if: steps.cache-clips.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          tarball="clips_core_source_${CLIPS_VERSION//./}.tar.gz"
+          curl -fL --retry 3 -o "$tarball" \
+            "https://sourceforge.net/projects/clipsrules/files/CLIPS/$CLIPS_VERSION/$tarball/download"
+          mkdir -p ~/clips
+          tar --strip-components=2 -xzf "$tarball" -C ~/clips
+          make -C ~/clips -j"$(nproc)"
+
+      - name: Put clips on PATH
+        run: echo "$HOME/clips" >> "$GITHUB_PATH"
+
+      # stdin is closed so CLIPS cannot wait at its prompt if a script
+      # fails to reach its (exit)
+      - name: Lint
+        run: timeout 600 make lint < /dev/null
+
+      - name: Test
+        run: timeout 600 make test < /dev/null
